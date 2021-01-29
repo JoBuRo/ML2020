@@ -15,11 +15,11 @@ print(X.shape)
 print(y.shape)
 print(len(y))
 
-def indicator_function(target: np.array, prediction: np.array, invert: bool=1):
+def indicator_function(target: np.array, prediction: np.array, is_positive: bool=1):
 
     #compare inversion of x feature if split within feature is done with < sign instead of >
     s=1
-    if invert:
+    if not is_positive:
         s=-1
 
     equal = np.zeros(len(target))
