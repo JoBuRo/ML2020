@@ -20,7 +20,7 @@ class NeuralNet():
         # Nodes in hidden layer = nihl
         self.nihl = 30
         # Clip gradient, if abs(gradient) > clipvalue
-        self.clipvalue = 10
+        self.clipvalue = 1
         # The dropout parameter consists of a tuple: (input_dropout, hiddenlayer_dropout)
         # do_rate = droput_rate
         self.do_rate = dropout
