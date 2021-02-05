@@ -20,7 +20,7 @@ class NeuralNet():
         # Nodes in hidden layer = nihl
         self.nihl = 30
         # Clip gradient, if abs(gradient) > clipvalue
-        self.clipvalue = 2
+        self.clipvalue = 10
         # The dropout parameter consists of a tuple: (input_dropout, hiddenlayer_dropout)
         # do_rate = droput_rate
         self.do_rate = dropout
@@ -110,21 +110,24 @@ class NeuralNet():
         for i in range(0, len(self.weights) - 1)[::-1]:
             # Get the derivation of the activation function (chain rule)
             # In the case of ReLU, this is essentially a mask
-            actfun_deriv = (self.activation[i + 1] >= 0)
-            # Drop muted neurons
+            # Also, the last layer doesn't have an activation function
+            if i + 1 != len(self.weights) - 1:
+                actfun_deriv = (self.activation[i + 1] >= 0)
+            else:
+                actfun_deriv = 1
+            # Drop it
             deriv = self.weights[i + 1].T
-            deriv *= self.dropout_mask[i]# .copy().reshape(1, -1)
+            deriv *= self.dropout_mask[i + 1].T
             deriv = deriv * actfun_deriv
             G_new = deriv.T.dot(G)
 
             # Compute the weight updates
             actfun_deriv = (self.activation[i] >= 0)
-            prev_activation = self.activation[i - 1] if i > 0 else x.copy().reshape(-1, 1)
-            # Drop it once more
-            prev_activation = prev_activation * self.dropout_mask[i]
+            if i > 0:
+                prev_activation = self.activation[i - 1]
+            else:
+                prev_activation = x.copy().reshape(-1, 1) * self.dropout_mask[0]
             gradient = prev_activation.dot(actfun_deriv.T)
-            gradient = np.clip(gradient, (-1) * self.clipvalue, self.clipvalue)
-
             # NaN, begone!
             weight_updates[i] = np.clip(gradient * G_new, -1 * self.clipvalue, self.clipvalue)
             bias_updates[i] = np.clip(G_new.copy().reshape(-1, 1) * (self.activation[i] >= 0), -1 * self.clipvalue, self.clipvalue)
