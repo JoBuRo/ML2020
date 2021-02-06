@@ -41,6 +41,10 @@ class NeuralNet():
 
     def sigmoid(z):
         # Sometimes, the exp overfloweth
+        if z >= 500:
+            return 1.0
+        elif z <= -500:
+            return sys.float_info.epsilon
         return 1 / (1 + np.exp(-1 * z))
     
     def log_loss(prediction, target):
