@@ -8,8 +8,6 @@ from sklearn import datasets
 
 import numpy as np
 
-
-
 class DropoutNet(nn.Module):
     def __init__(self, num_inputs = 30, num_epochs=100, use_dropout=True, drop_rate_input=0.8, drop_rate_hidden=0.5, is_training = True):
         super().__init__()
@@ -29,14 +27,13 @@ class DropoutNet(nn.Module):
         self.is_training = is_training
 
         # Learning rate definition
-        self.learning_rate = 0.002
+        self.learning_rate = 0.001
 
         self.num_epochs = num_epochs
 
-        self.b1 = torch.randn(self.input_dim)
-
-        self.b2 = torch.randn(self.hidden_dim)
-        self.b3 = torch.randn(self.output_dim)
+        self.b1 = torch.randn(1,self.input_dim)
+        self.b2 = torch.randn(1,self.hidden_dim)
+        self.b3 = torch.randn(1,self.output_dim)
 
         # Our parameters (weights)
         # w1: 30 x 30
@@ -56,7 +53,7 @@ class DropoutNet(nn.Module):
     
     def dropout_layer(self, X, layer):  #layer0:input Layer
         #scale before returning
-        return self.mask[layer] * X / (1.0 - self.drop_rate[layer])
+        return self.mask[layer] * X #/ (1.0 - self.drop_rate[layer])
 
     def sigmoid(self, s):
         return 1 / (1 + torch.exp(-s))
@@ -74,10 +71,10 @@ class DropoutNet(nn.Module):
             # Add a dropout layer after the second fully connected layer
             X = self.dropout_layer(X,0)
         elif self.is_training == False & self.use_dropout == True:
-            self.h1 = self.X * self.drop_rate[0]
+            self.X = self.X * self.drop_rate[0]
 
         self.y1 = torch.matmul(X, self.w1)
-        #self.y1= self.b1.unsqueeze(0).expand_as(self.y1) # 3 X 3 ".dot" does not broadcast in PyTorch
+        self.y1 += self.b1[None,:].squeeze(0) # 3 X 3 ".dot" does not broadcast in PyTorch
         # First non-linearity
         self.h1 = self.relu(self.y1) #activation function
 
@@ -89,7 +86,7 @@ class DropoutNet(nn.Module):
 
         # Second linear layer
         self.y2 = torch.matmul(self.h1, self.w2)
-        #self.y2= self.b2.unsqueeze(0).expand_as(self.y2)
+        self.y2 += self.b2[None,:].squeeze(0)
 
         # Second non-linearity
         self.h2 = self.relu(self.y2)
@@ -98,11 +95,11 @@ class DropoutNet(nn.Module):
             # Add a dropout layer after the second fully connected layer
             self.h2 = self.dropout_layer(self.h2, 2)
         elif self.is_training == False & self.use_dropout == True:
-            self.h1 = self.h2 * self.drop_rate[2]
+            self.h2 = self.h2 * self.drop_rate[2]
 
         # Third linear layer
         self.y3 = torch.matmul(self.h2, self.w3)
-        #self.y3= self.b3.unsqueeze(0).expand_as(self.y3)
+        self.y3 += self.b3[None,:].squeeze(0)
         # Second non-linearity
         self.h3 = self.sigmoid(self.y3)
 
@@ -111,7 +108,7 @@ class DropoutNet(nn.Module):
     # Backward propagation
     def backward(self, X, groundtruth, h3):
         # Derivative of binary cross entropy cost w.r.t. final output h2
-        self.dC_dh3 = 2*(h3 - groundtruth)
+        self.dC_dh3 = -2*(groundtruth - h3)
 
         '''
         Gradients for w3: partial derivative of cost w.r.t. w3
@@ -129,6 +126,7 @@ class DropoutNet(nn.Module):
         #                               // h3_delta \\  //h2\\
         # This is our gradients for w1: dC_dh2 dh2_dy2 dy2_dw2
         self.dC_dw3 = torch.matmul(torch.t(self.h2), self.h3_delta)
+        self.dC_db3 = torch.matmul(torch.t(torch.ones(self.h2.shape)),self.h3_delta)
 
         '''
         Gradients for w2: partial derivative of cost w.r.t. w2
@@ -147,6 +145,7 @@ class DropoutNet(nn.Module):
         #                   //  h2_delta  \\ 
         # Gradients for w2: (dC_dh3 dh3_dy3) dy3_dh2 dh2_dy2 , dy2_dw2
         self.dC_dw2 = torch.matmul(torch.t(self.h1), self.h2_delta)
+        self.dC_db2 = torch.matmul(torch.t(torch.ones(self.h1.shape)),self.h2_delta)
 
         '''
         Gradients for w1: partial derivative of cost w.r.t w1
@@ -166,11 +165,19 @@ class DropoutNet(nn.Module):
         #                   //   h1_delta \\ 
         # Gradients for w1: (dC_dh2 dh2_dy2) dy2_dh1 dh1_dy1 dy1_dw1
         self.dC_dw1 = torch.matmul(torch.t(X), self.h1_delta)
+        self.dC_db1 = torch.matmul(torch.t(torch.ones(X.shape)),self.h1_delta)
+
+
 
         # Gradient descent on the weights from our 2 linear layers
         self.w1 -= self.learning_rate * self.dC_dw1
         self.w2 -= self.learning_rate * self.dC_dw2
         self.w3 -= self.learning_rate * self.dC_dw3
+
+        self.b1 -= self.learning_rate * self.dC_db1
+        self.b2 -= self.learning_rate * self.dC_db2
+        self.b3 -= self.learning_rate * self.dC_db3
+
 
     def run_training(self, X, y):
         
