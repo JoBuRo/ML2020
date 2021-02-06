@@ -7,7 +7,7 @@ class NeuralNet():
     """ This neural network uses ReLU as activation functions
         and the logistic loss for the output.
     """
-    def __init__(self, num_features, penalty, dropout, learning_rate, num_epochs, num_batches, batch_size):
+    def __init__(self, num_features, dropout, learning_rate, num_epochs, num_batches, batch_size, penalty=0):
         self.lr = learning_rate
         self.trained = False
         self.rng = np.random.default_rng()
@@ -20,7 +20,7 @@ class NeuralNet():
         # Nodes in hidden layer = nihl
         self.nihl = 30
         # Clip gradient, if abs(gradient) > clipvalue
-        self.clipvalue = 1
+        self.clipvalue = 2
         # The dropout parameter consists of a tuple: (input_dropout, hiddenlayer_dropout)
         # do_rate = droput_rate
         self.do_rate = dropout
@@ -40,6 +40,7 @@ class NeuralNet():
         self.dropout_mask += [np.ones((self.nihl, 1)) for _ in range(self.num_hl)]
 
     def sigmoid(z):
+        # Sometimes, the exp overfloweth
         return 1 / (1 + np.exp(-1 * z))
     
     def log_loss(prediction, target):
@@ -116,7 +117,7 @@ class NeuralNet():
             else:
                 actfun_deriv = 1
             # Drop it
-            deriv = self.weights[i + 1].T
+            deriv = self.weights[i + 1].T.copy()
             deriv *= self.dropout_mask[i + 1].T
             deriv = deriv * actfun_deriv
             G_new = deriv.T.dot(G)
@@ -139,7 +140,7 @@ class NeuralNet():
             self.bias[i] -= self.lr * (bias_updates[i] + self.alpha * self.bias[i])
 
 
-    def train(self, X, y):
+    def train(self, X, y, verbose=False):
         """ Train the features on data points X and targets y
             X: N x M array
             Y: N array
@@ -150,14 +151,13 @@ class NeuralNet():
             batches = self.rng.choice(np.arange(len(X)), size=(self.num_batch, self.batch_size), replace=True)
             epoch_loss = 0
             for batch in batches:
-                batch_loss = 0
                 self.update_dropout()
                 for idx in batch:
                     loss = self.feed_forward(X[idx], y[idx])
-                    batch_loss += loss
+                    epoch_loss += loss
                     self.backprop(X[idx], y[idx])
-                epoch_loss += batch_loss
-            print(f"Epoch {i + 1}, Total epoch loss: {epoch_loss:.5f}")
+            if verbose:
+                print(f"Epoch {i + 1}, Total epoch loss: {epoch_loss:.5f}")
         self.trained = True
 
     def predict(self, X):

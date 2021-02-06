@@ -11,10 +11,11 @@ num_zeros = 50
 X = np.concatenate((np.ones((num_ones, 10)), np.zeros((num_zeros, 10)) - 1))
 y = np.concatenate((np.ones(num_ones), np.zeros(num_zeros)))
 
-nn = NeuralNet(num_features=10, penalty=0, dropout=(0.8, 0.5), learning_rate=0.05, num_epochs=20, num_batches=5, batch_size=20)
-nn.train(X, y)
+nn = NeuralNet(num_features=10, penalty=0, dropout=(0.8, 0.5), learning_rate=0.05, num_epochs=20, num_batches=10, batch_size=20)
+nn.train(X, y, verbose=True)
 print(f"Predict one: {nn.predict(np.ones((1, 10)))[0]}")
 print(f"Predict zero: {nn.predict(np.zeros((1, 10)) - 1)[0]}")
+print(f"Accuracy: {100 * accuracy_score(y, np.around(nn.predict(X))):.5f}%")
 
 """
 
@@ -28,8 +29,8 @@ train_y = y[:-test_size]
 test_X = X[-test_size:]
 test_y = y[-test_size:]
 
-nn = NeuralNet(num_features=len(X[0]), penalty=0, dropout=(0.8, 0.5), learning_rate=0.02, num_epochs=20, num_batches=5, batch_size=100)
-nn.train(train_X, train_y)
+nn = NeuralNet(num_features=len(X[0]), penalty=0, dropout=(0.8, 0.5), learning_rate=0.02, num_epochs=20, num_batches=20, batch_size=30)
+nn.train(train_X, train_y, verbose=True)
 pred = nn.predict(test_X)
 
 for i, p in enumerate(pred):
